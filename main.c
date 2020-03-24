@@ -1,3 +1,10 @@
+/**************************************************************
+ *Hitinga HT5X UART Demo code
+ *
+ *www.hitinga.com
+ *
+ *Author: HM.Pan
+ *************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
