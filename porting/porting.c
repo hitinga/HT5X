@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include "porting.h"
 
-static int uart_fd;
+static int uart_fd = -1;
 static void * mutex_uartsend = NULL;
 
 void *OS_MALLOC(size_t size)
@@ -251,6 +251,33 @@ static int Config(int fd, int speed, int databits, int stopBits, char parity)
 	return 0;
 }
 
+/*
+ * uart_init : uart 初始化
+ *  return : 配置成功返回 0，配置失败返回负值
+ */
+int uart_init(void)
+{
+	uart_fd = Open("/dev/ttyUSB0");
+	if (uart_fd < 0) {
+		printf ("uart open failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * uart_done : uart 资源释放
+ *  return : 配置成功返回 0，配置失败返回负值
+ */
+int uart_done(void)
+{
+	Close(uart_fd);
+    uart_fd = -1;
+	return 0;
+}
+
+
 /*readTimeout、writeTimeout单位为秒*/
 static int setTimeouts(int fd, int readTimeout, int writeTimeout) 
 {
@@ -306,31 +333,6 @@ int BlockRead(int fd, void *buf, int size)
 static int Write(int fd, const void *buf, int size) 
 {
 	return write(fd, buf, size);
-}
-
-/*
- * uart_init : uart 初始化
- *  return : 配置成功返回 0，配置失败返回负值
- */
-int uart_init(void)
-{
-	uart_fd = Open("/dev/ttyUSB0");
-	if (uart_fd < 0) {
-		printf ("uart open failed\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-/*
- * uart_done : uart 资源释放
- *  return : 配置成功返回 0，配置失败返回负值
- */
-int uart_done(void)
-{
-	Close(uart_fd);
-	return 0;
 }
 
 /*

@@ -14,22 +14,21 @@
 #include "iot_stream.h"
 #include "protocol.h"
 
-static const uint8_t rcv_magic[MAGIC_LEN] = {
-	MAGIC_HEX_0, MAGIC_HEX_1,
-	MAGIC_HEX_2, MAGIC_HEX_3
-};
-
 #define IOT_UART_BANDRATE 115200
 #define IOT_UART_DATABITS 8
 #define IOT_UART_STOPBITS 1
 #define IOT_UART_PARITY   'N'
+
+static const uint8_t rcv_magic[MAGIC_LEN] = {
+	MAGIC_HEX_0, MAGIC_HEX_1,
+	MAGIC_HEX_2, MAGIC_HEX_3
+};
 
 static inline int byte_match(uint8_t c)
 {
 	uint8_t ch = 0;
 
 	int ret = uart_read_nonblock(&ch, 1 , 1000);
-	printf("%d , %x\n" , ret , ch);
 	if(ret<=0){
 		return -1;
 	}
@@ -89,9 +88,45 @@ static int get_crc(uint8_t *buf)
 	return 0;
 }
 
-static void check_hitinga_alive()
+static void PrivateCtrlHTExample(uint32_t play)
 {
-    //此处添加查询hitinga模组是否还活着
+    //根据协议控制HT模组 , 以暂停播放为例
+    int ret = 0;
+	// IOT设备的控制
+	// 创建字节流结构
+	stream_msg_t * stream = HTIOTStreamCreate(IOT_EQUIP_ID);
+	if(stream==NULL){
+		ERROR_PRINTF("stream create error\n");
+        return ;
+	}
+
+	uint8_t * pbuf=NULL;
+	uint16_t len=0;
+
+	do{
+		// 进行对意图的解析协议
+		HTIOTStreamAddNode(stream, ME2HT_CTRL_PLAY, play);
+
+		// 获取字节流
+		ret = HTIOTStreamPrintBuf(stream,&pbuf,&len);
+		if(ret <0){
+			ERROR_PRINTF("stream printbuf error\n");
+			break;
+		}
+
+		ret = uart_write(pbuf,len);
+		if(ret < 0){
+			ERROR_PRINTF("stream send error\n");
+			break;
+		}
+
+	}while(0);
+
+	if(stream)
+		HTIOTStreamDelete(stream);
+	if(pbuf)
+		free(pbuf);    
+    
     return;
 }
 
@@ -102,21 +137,8 @@ static void UartReadProc(void *params)
 	int streamlen = 0;
 	uint16_t bodylen = 0;
 
-	// 这里为了握手设备
-    uint64_t old = 0 , now = 0;
-
-	old = get_time_s();
-
 	for(;;){
 		do{
-			// 如果没有查询到设备ID，则一直查询
-			if(1){
-            	now = get_time_s();
-				if(now - old > 5){
-                	old = get_time_s();
-                    check_hitinga_alive();
-				}
-			}
 			//找magic头
 			if(find_magic() != 0){
 				continue;
@@ -174,13 +196,18 @@ static void UartReadProc(void *params)
 
 int main(int argc , char *argv[])
 {
-	uart_init();
+	if(uart_init() != 0){
+        return -1;
+    }
+    else{
+        DEBUG_PRINTF("uart init success!!!\n");
+    }
 
     if(uart_config(IOT_UART_BANDRATE , IOT_UART_DATABITS , IOT_UART_STOPBITS , IOT_UART_PARITY) != 0){
         return -1;
     }
     else{
-        DEBUG_PRINTF("uart init success!!!\n");
+        DEBUG_PRINTF("uart config success!!!\n");
     }
 
     if(create_thread((void *)UartReadProc , NULL) != 0){
@@ -190,14 +217,14 @@ int main(int argc , char *argv[])
         DEBUG_PRINTF("create thread success!!!\n");
     }
 
+    uint32_t play = 0;
+
     for(;;){
-		debugline;
-        msleep(1000);
+        msleep(5000);
+        PrivateCtrlHTExample(play);
+        play = !play;
     }
 
     return 0;
 
 }
-
-
-
